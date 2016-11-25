@@ -1,0 +1,177 @@
+lua-syslog
+==========
+:toc:
+
+A syslog binding for Lua 5.3.
+
+
+Usage
+-----
+
+[source,lua]
+----
+local logger = require('syslog')
+----
+
+
+Functions
+---------
+
+
+[[open]]
+`logger:open(ident[, option[, facility]])`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`:open` opens a connection to the system logger for a program.
+
+'ident' is the string prepended to every message, and is typically set
+to the program name.
+
+The 'option' argument specifies flags which control the operation of
+`:open` and subsequent calls to <<log,`:log`>>.
+
+The 'option' argument is a bitwise OR of any of these:
+footnote:[By the way, Lua 5.3 has a bitwise OR operator now! (It's the same as in C)]
+
+`logger.option.cons`::
+Write directly to system console if there is an error while sending to
+system logger.
+
+`logger.option.ndelay`::
+Open the connection immediately (normally, the connection is opened when
+the first message is logged).
+
+`logger.option.nowait`::
+Don't wait for child processes that may have been created while logging
+the message.
+(The GNU C library does not create a child process, so this option has
+no effect on Linux.)
+
+`logger.option.odelay`::
+The converse of `logger.option.ndelay`; opening of the connection is
+delayed until <<log,`:log`>> is called.
+(This is the default, and need not be specified.)
+
+`logger.option.perror`::
+Print to `stderr` as well.
++
+Since this is a GNU extension, it it set to `0` on systems that do not
+support it.
+(Basically, it is silently ignored.)
+
+`logger.option.pid`::
+Include PID with each message.
+
+The 'facility' argument is used to specify what type of program is
+logging the message.
+This lets the configuration file specify that messages from different
+facilities will be handled differently.
+
+[[facility]]
+[horizontal]
+`"auth"`::
+  security/authorization messages
+`"authpriv"`::
+  security/authorization messages (private)
+`"cron"`::
+  clock daemon (cron and at)
+`"daemon"`::
+  system daemons without separate facility value
+`"ftp"`::
+  ftp daemon
+`"kern"`::
+  kernel messages (these can't be generated from user processes)
+`"local0"` through `"local7"`::
+  reserved for local use
+`"lpr"`::
+  line printer subsystem
+`"mail"`::
+  mail subsystem
+`"news"`::
+  USENET news subsystem
+  footnote:[Perhaps system logging facilities should not have a hard-coded list of subsystems...]
+`"syslog"`::
+  messages generated internally by link:man:syslogd(8)[syslogd]
+`"user"` (default)::
+  generic user-level messages
+`"uucp"`::
+  UUCP subsystem
+
+The use of `:open` is optional on many systems.
+
+
+[[strerror]]
+`logger:strerror()`
+~~~~~~~~~~~~~~~~~~~
+
+Returns a string describing the most recent error.
+
+[source,c]
+----
+lua_pushstring(L, strerror(errno));
+----
+
+
+[[log]]
+`logger:log(level[, facility], message)`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`:log` generates a log message, which will be distributed by
+link:man:syslogd(8)[syslogd].
+
+The 'level' argument determines the importance of the message.
+The levels are, in order of decreasing importance:
+
+[horizontal]
+`"emerg"`::
+  system is unusable
+`"alert"`::
+  action must be taken immediately
+`"crit"`::
+  critical conditions
+`"err"`::
+  error conditions
+`"warning"`::
+  warning conditions
+`"notice"`::
+  normal, but significant, condition
+`"info"`::
+  informational message
+`"debug"`::
+  debug-level message
+
+The optional 'facility' argument is the same as for <<facility,`:open`>>.
+
+The 'message' argument is the error message.
+A trailing newline may be added if needed.
+
+
+[[close]]
+`logger:close()`
+~~~~~~~~~~~~~~~~
+
+Closes the descriptor being used to write to the system logger.
+The use of `:close` is optional.
+
+
+[[mask]]
+`logger:setmask{emerg, alert, crit, err, warning, notice, info, debug}`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Restrict logging to the specified levels only.
+
+This function takes one argument, which is a table containing the
+desired levels.
+
+Here, let me just give you an example:
+
+[source,lua]
+.Only log `emerg`, `alert`, `crit`, and `err`
+----
+logger:setmask{
+    emerg = true,
+    alert = true,
+    crit  = true,
+    err   = true,
+}
+----
